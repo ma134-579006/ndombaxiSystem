@@ -12,6 +12,7 @@
  *   • instância única                → dois postos a escrever no mesmo SQLite dava
  *                                     corrupção; a 2.ª execução foca a 1.ª janela.
  */
+import { LEGACY, mainFetch } from './compat';
 import { app, BrowserWindow, ipcMain, shell, dialog, screen, session as electronSession } from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
@@ -70,6 +71,8 @@ let serveLocalApp = true;
 
 /** Arranca o servidor local, se estiver disponível. Nunca impede a app de abrir. */
 async function startLocalServer(): Promise<void> {
+  // Edição legado (Windows 7/8): sem servidor local — o PostgreSQL 16 não corre lá.
+  if (LEGACY) return;
   try {
     const { LocalServer, layout, binariesPresent, blockedReason } = await import('@nexus/local-server');
     const paths = layout({
@@ -138,7 +141,7 @@ async function fiscalEngineIsExternal(session: { accessToken: string; companyCod
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 8000);
   try {
-    const r = await fetch(`${session.apiUrl.replace(/\/+$/, '')}/fiscal-engine/badge`, {
+    const r = await mainFetch(`${session.apiUrl.replace(/\/+$/, '')}/fiscal-engine/badge`, {
       headers: { Authorization: `Bearer ${session.accessToken}`, 'X-Tenant-Code': session.companyCode },
       signal: ctl.signal,
     });
@@ -326,7 +329,7 @@ async function probeCloud(): Promise<void> {
   try {
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), 8_000);
-    try { ok = (await fetch(`${replicationSession.apiUrl.replace(/\/$/, '')}/health`, { signal: ctl.signal })).ok; } finally { clearTimeout(t); }
+    try { ok = (await mainFetch(`${replicationSession.apiUrl.replace(/\/$/, '')}/health`, { signal: ctl.signal })).ok; } finally { clearTimeout(t); }
   } catch { ok = false; }
   const voltou = ok && cloudOnline === false;
   if (ok !== cloudOnline) logLocal(ok ? 'internet: ligação à nuvem restabelecida' : 'internet: sem ligação à nuvem');

@@ -1,0 +1,93 @@
+# Compila os instaladores da EDIÇÃO LEGADO do LPS Vendas (Windows 7, 8 e 8.1;
+# 64 e 32 bits) com o Electron 22.3.27 — o último que corre nesses sistemas.
+# Manual: Actions → "Windows 7/8 build" → Run workflow.
+# Resultado: release `windows7-latest` com LPSVendas-Setup-win7-x64.exe e
+# LPSVendas-Setup-win7-ia32.exe (nomes fixos → links que nunca mudam). O servidor
+# lê a release e passa a exigir esta versão às apps legado (plataformas
+# `windows7` e `windows7-32` em Admin → Aplicações).
+# Diferenças do moderno: ver apps/desktop/electron-builder-legacy.yml e src/main/compat.ts
+# (sem servidor local: o PostgreSQL 16 não corre no Windows 7).
+name: Windows 7/8 build
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows7:
+    runs-on: windows-latest
+    env:
+      NDOMBAXI_API_URL: https://ndombaxi-api-bwwr.onrender.com
+      ELECTRON_LEGACY: 22.3.27
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # REGRA PERMANENTE: cada build publicada tem versão maior → bloqueia as anteriores.
+      - name: Versão automática desta build
+        shell: bash
+        run: node scripts/ci-version.mjs
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+      - name: Compilar pacotes partilhados
+        run: |
+          pnpm --filter @nexus/types build
+          pnpm --filter @nexus/update-core build
+          pnpm --filter @nexus/shop-link build
+          pnpm --filter @nexus/replication build
+          pnpm --filter @nexus/local-server build
+      - name: Compilar app (processo principal e frontends; sem servidor local)
+        working-directory: apps/desktop
+        run: |
+          pnpm build:main
+          pnpm prepare:resources
+      # O better-sqlite3 é nativo: um binário por arquitetura, para o ABI do Electron 22.
+      - name: Instalador 64 bits
+        shell: bash
+        working-directory: apps/desktop
+        run: |
+          ( cd "$(node -p "require('path').dirname(require.resolve('better-sqlite3/package.json'))")" && npx --yes prebuild-install@7 --runtime=electron --target=$ELECTRON_LEGACY --arch=x64 --force )
+          pnpm exec electron-builder --config electron-builder-legacy.yml --win --x64 --publish never
+      - name: Instalador 32 bits
+        shell: bash
+        working-directory: apps/desktop
+        run: |
+          ( cd "$(node -p "require('path').dirname(require.resolve('better-sqlite3/package.json'))")" && npx --yes prebuild-install@7 --runtime=electron --target=$ELECTRON_LEGACY --arch=ia32 --force )
+          pnpm exec electron-builder --config electron-builder-legacy.yml --win --ia32 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lps-vendas-windows7
+          path: apps/desktop/release-legacy/*.exe
+          if-no-files-found: error
+      - name: Publicar instaladores (Releases → windows7-latest)
+        shell: bash
+        working-directory: apps/desktop/release-legacy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then echo "::error::Só se publica a partir de main (ref: $GITHUB_REF)."; exit 1; fi
+          cur=$(gh release view windows7-latest -R "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null | grep -oE 'Vers[^:]*: [0-9]+\.[0-9]+\.[0-9]+' | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          if [ -n "$cur" ] && [ "$(printf '%s\n%s\n' "$cur" "$APP_VERSION" | sort -V | tail -1)" != "$APP_VERSION" ]; then
+            echo "::error::Versão $APP_VERSION é mais baixa do que a publicada ($cur) — não se substitui."; exit 1
+          fi
+          x64=$(ls LPSVendas-Setup-*-win7-x64.exe | head -1)
+          x86=$(ls LPSVendas-Setup-*-win7-ia32.exe | head -1)
+          cp "$x64" LPSVendas-Setup-win7-x64.exe
+          cp "$x86" LPSVendas-Setup-win7-ia32.exe
+          gh release delete windows7-latest --yes --cleanup-tag -R "$GITHUB_REPOSITORY" || true
+          gh release create windows7-latest "$x64" "$x86" LPSVendas-Setup-win7-x64.exe LPSVendas-Setup-win7-ia32.exe \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "LPS Vendas para Windows 7/8 (mais recente)" \
+            --notes "Instaladores do LPS Vendas para Windows 7, 8 e 8.1 (64 e 32 bits, Electron ${ELECTRON_LEGACY}). Versão: ${APP_VERSION}. Commit ${GITHUB_SHA::7}, build #${GITHUB_RUN_NUMBER}. Sem servidor local (trabalha contra a nuvem com a fila offline). Sem assinatura digital: na primeira instalação o Windows avisa — Mais informações → Executar mesmo assim."
+      - name: Bloquear versões anteriores (avisar o servidor)
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          curl -fsS -X POST --max-time 90 "${NDOMBAXI_API_URL:-https://ndombaxi-api-bwwr.onrender.com}/downloads/sync" || echo "Servidor indisponível agora — sincroniza sozinho em até 10 min."

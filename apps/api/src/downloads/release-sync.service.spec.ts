@@ -1,4 +1,4 @@
-import { ReleaseSyncService, compareVersions, versionFromNotes } from './release-sync.service';
+import { ReleaseSyncService, RELEASE_SOURCES, compareVersions, versionFromNotes } from './release-sync.service';
 
 type Row = { id: string; platform: string; version: string; published: boolean; releasedAt: Date; fileUrl: string; mandatory: boolean };
 
@@ -45,6 +45,11 @@ describe('ReleaseSyncService', () => {
     ];
     global.fetch = jest.fn(async (url: string) => {
       if (url.endsWith('/windows-latest')) return release('windows-latest', '1.5.640', 'LPSVendas-Setup-x64.exe');
+      if (url.endsWith('/windows7-latest')) {
+        const r = release('windows7-latest', '1.5.640', 'LPSVendas-Setup-win7-x64.exe');
+        const j = r.json;
+        return { ...r, json: async () => { const b = await j(); b.assets.push({ name: 'LPSVendas-Setup-win7-ia32.exe', browser_download_url: 'https://github.com/x/y/releases/download/windows7-latest/LPSVendas-Setup-win7-ia32.exe', size: 1 }); return b; } };
+      }
       if (url.endsWith('/android-latest')) return release('android-latest', '1.5.640', 'LPSVendas-Android.apk');
       if (url.endsWith('/android-kwanza-latest')) return release('android-kwanza-latest', '1.5.640', 'LPSKwanza-Android.apk');
       if (url.endsWith('/windows-kwanza-latest')) return release('windows-kwanza-latest', '1.5.640', 'LPSKwanza-Setup-x64.exe');
@@ -53,11 +58,11 @@ describe('ReleaseSyncService', () => {
     const svc = new ReleaseSyncService(fakePrisma(rows) as never);
     const out = await svc.sync(true);
     expect(out.map((r) => [r.platform, r.action, r.version])).toEqual([
-      ['windows', 'published', '1.5.640'], ['android', 'published', '1.5.640'], ['android-loja', 'published', '1.5.640'],
+      ['windows', 'published', '1.5.640'], ['windows7', 'published', '1.5.640'], ['windows7-32', 'published', '1.5.640'], ['android', 'published', '1.5.640'], ['android-loja', 'published', '1.5.640'],
       ['android-kwanza', 'published', '1.5.640'], ['windows-kwanza', 'published', '1.5.640'],
     ]);
     const pub = rows.filter((r) => r.published);
-    expect(pub.map((r) => `${r.platform}@${r.version}`).sort()).toEqual(['android-kwanza@1.5.640', 'android-loja@1.5.640', 'android@1.5.640', 'windows-kwanza@1.5.640', 'windows@1.5.640']);
+    expect(pub.map((r) => `${r.platform}@${r.version}`).sort()).toEqual(['android-kwanza@1.5.640', 'android-loja@1.5.640', 'android@1.5.640', 'windows-kwanza@1.5.640', 'windows7-32@1.5.640', 'windows7@1.5.640', 'windows@1.5.640']);
     expect(rows.find((r) => r.id === 'a')!.published).toBe(false);
     expect(pub.every((r) => r.mandatory)).toBe(true);
     expect(pub.find((r) => r.platform === 'windows')!.fileUrl).toContain('/windows-latest/LPSVendas-Setup-x64.exe');
@@ -82,7 +87,7 @@ describe('ReleaseSyncService', () => {
       return { ok: false, status: 403, headers: { get: () => null } };
     }) as never;
     const out = await new ReleaseSyncService(fakePrisma(rows) as never).sync(true);
-    expect(out.map((r) => r.action)).toEqual(['skipped', 'unchanged', 'skipped', 'skipped', 'skipped']);
+    expect(out.map((r) => r.action)).toEqual(['skipped', 'skipped', 'skipped', 'unchanged', 'skipped', 'skipped', 'skipped']);
     expect(rows).toHaveLength(0);
   });
 
@@ -92,7 +97,7 @@ describe('ReleaseSyncService', () => {
     const svc = new ReleaseSyncService(fakePrisma([]) as never);
     await svc.sync();
     await svc.sync();
-    expect(f).toHaveBeenCalledTimes(5); // uma por app (RELEASE_SOURCES)
+    expect(f).toHaveBeenCalledTimes(RELEASE_SOURCES.length); // uma por app
   });
 });
 
@@ -106,15 +111,15 @@ describe('ReleaseSyncService.syncIfStale', () => {
     const f = jest.fn(async () => release('windows-latest', '1.5.900', 'LPSVendas-Setup-x64.exe'));
     global.fetch = f as never;
     const svc = new ReleaseSyncService(fakePrisma([]) as never);
-    // Espera DETERMINÍSTICA (até 2 s) pelos 5 pedidos paralelos — 10 ms fixos
+    // Espera DETERMINÍSTICA (até 2 s) pedidos paralelos (um por app) — 10 ms fixos
     // falhavam com a máquina carregada (teste instável na bateria completa).
     const until = async (ok: () => boolean) => { for (let i = 0; i < 200 && !ok(); i++) await new Promise((r) => setTimeout(r, 10)); };
     svc.syncIfStale();
-    await until(() => f.mock.calls.length >= 5);
-    expect(f).toHaveBeenCalledTimes(5); // uma por app (RELEASE_SOURCES)
+    await until(() => f.mock.calls.length >= RELEASE_SOURCES.length);
+    expect(f).toHaveBeenCalledTimes(RELEASE_SOURCES.length); // uma por app
     svc.syncIfStale();
     await new Promise((r) => setTimeout(r, 50));
-    expect(f).toHaveBeenCalledTimes(5); // a 2.ª chamada não volta a sincronizar
+    expect(f).toHaveBeenCalledTimes(RELEASE_SOURCES.length); // a 2.ª chamada não volta a sincronizar
   });
 });
 
@@ -135,7 +140,7 @@ describe('ReleaseSyncService — API do GitHub em 403 (auditoria 2026-11-09)', (
       return { ok: false, status: 403, headers: { get: (): string | null => null } };
     }) as never;
     const out = await new ReleaseSyncService(fakePrisma(rows) as never).sync(true);
-    expect(out.map((r) => r.action)).toEqual(['published', 'published', 'skipped', 'skipped', 'skipped']); // a Loja e o Kwanza não estão no feed de teste
+    expect(out.map((r) => r.action)).toEqual(['published', 'skipped', 'skipped', 'published', 'skipped', 'skipped', 'skipped']); // o Windows 7, a Loja e o Kwanza não estão no feed de teste
     const win = rows.find((r) => r.platform === 'windows')!;
     expect(win.version).toBe('1.5.966');
     expect(win.mandatory).toBe(true);

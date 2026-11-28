@@ -25,6 +25,14 @@ const PLATFORMS: { id: AppPlatform; label: string; hint: string; icon: React.Rea
     icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3zM10.5 12.5v7.1L3 18.5v-6zM11.5 4.3 21 3v8.5h-9.5zM21 12.5V21l-9.5-1.3v-7.2z"/></svg>,
   },
   {
+    id: 'windows7', label: 'Windows 7/8 (64 bits)', hint: 'Instalador .exe da edição legado (Windows 7, 8 e 8.1, 64-bit; publicado pelo CI)',
+    icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3zM10.5 12.5v7.1L3 18.5v-6zM11.5 4.3 21 3v8.5h-9.5zM21 12.5V21l-9.5-1.3v-7.2z"/></svg>,
+  },
+  {
+    id: 'windows7-32', label: 'Windows 7/8 (32 bits)', hint: 'Instalador .exe da edição legado (Windows 7, 8 e 8.1, 32-bit; publicado pelo CI)',
+    icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3zM10.5 12.5v7.1L3 18.5v-6zM11.5 4.3 21 3v8.5h-9.5zM21 12.5V21l-9.5-1.3v-7.2z"/></svg>,
+  },
+  {
     id: 'android', label: 'Android', hint: 'APK ou AAB (Android 6 ou superior)',
     icon: <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 9h12v8a2 2 0 0 1-2 2h-1v3h-2v-3h-2v3H9v-3H8a2 2 0 0 1-2-2zM4 9.5A1.5 1.5 0 0 1 5.5 11v4A1.5 1.5 0 0 1 2.5 15v-4A1.5 1.5 0 0 1 4 9.5m16 0A1.5 1.5 0 0 1 21.5 11v4a1.5 1.5 0 0 1-3 0v-4A1.5 1.5 0 0 1 20 9.5M7.2 7.8A6 6 0 0 1 12 5.5a6 6 0 0 1 4.8 2.3z"/></svg>,
   },

@@ -1434,7 +1434,7 @@ export interface ServicesDashboard {
 }
 
 // ── Gestão de Downloads das aplicações (Super Admin) ─────────
-export type AppPlatform = 'windows' | 'android' | 'android-loja' | 'android-kwanza' | 'windows-kwanza' | 'ios';
+export type AppPlatform = 'windows' | 'windows7' | 'windows7-32' | 'android' | 'android-loja' | 'android-kwanza' | 'windows-kwanza' | 'ios';
 export interface AppReleaseRow {
   id: string;
   platform: AppPlatform;

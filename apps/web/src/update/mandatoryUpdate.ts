@@ -14,7 +14,9 @@
  * (`autoUpdate.ts`) e trancar um separador não faria sentido.
  */
 import { decideUpdate, readyToBlock, type UpdateDecision } from '@nexus/update-core';
-import { API_URL } from '../config';
+// NUVEM, nunca o servidor local: o LPS Vendas Local Server não tem /downloads e
+// devolvia 404 — a app Windows com servidor local nunca via a atualização obrigatória.
+import { CLOUD_API_URL as API_URL } from '../config';
 import { getOfflineEngine, getSyncStatus } from '../offline/boot';
 
 const FIRST_CHECK_MS = 1_500;
@@ -50,9 +52,11 @@ function bakedVersion(): string | null {
   return typeof w.__NDOMBAXI_APP_VERSION__ === 'string' ? w.__NDOMBAXI_APP_VERSION__ : null;
 }
 
-export function platformOfThisApp(): 'windows' | 'android' | null {
+export function platformOfThisApp(): 'windows' | 'windows7' | 'windows7-32' | 'android' | null {
   if (typeof window === 'undefined') return null;
-  if (desktop()?.version) return 'windows';
+  // Edição legado (Windows 7/8/8.1, Electron 22) tem plataforma própria: o instalador moderno nem abre lá.
+  const dp = desktop()?.platform;
+  if (desktop()?.version) return dp === 'windows7' || dp === 'windows7-32' ? dp : 'windows';
   if (bakedVersion() || capacitorApp()?.getInfo) return 'android';
   return null;
 }
